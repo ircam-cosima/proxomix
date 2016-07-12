@@ -23,7 +23,8 @@
     "babel-runtime": "^6.6.1",
     "debug": "^2.1.2",
     "soundworks": "collective-soundworks/soundworks#v1.1.1",
-    "source-map-support": "^0.4.0"
+    "source-map-support": "^0.4.0",
+    "web-audio-ambisonic": "git://github.com/polarch/JSAmbisonics"
   },
   "devDependencies": {
     "babel-core": "^6.6.5",

@@ -43,7 +43,8 @@ const init = () => {
   soundworks.client.start();
 };
 
-if (!window.cordova)
-  document.addEventListener('deviceready', init());
+
+if (!!window.cordova)
+  document.addEventListener('deviceready', init);
 else
-  window.addEventListener('load', init());
+  window.addEventListener('load', init);

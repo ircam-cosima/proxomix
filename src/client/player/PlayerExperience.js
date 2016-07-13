@@ -47,8 +47,8 @@ export default class PlayerExperience extends soundworks.Experience {
 
     // services
     this.loader = this.require('loader', { files: audioFilesName });
-    this.platform = this.require('platform', { features: ['web-audio', 'wake-lock'] });
-    this.checkin = this.require('checkin', { showDialog: false });
+    this.platform = this.require('platform', { features: ['web-audio'] });
+    if (!standalone) { this.checkin = this.require('checkin', { showDialog: false }); }
     this.sync = this.require('sync');
     this.motionInput = this.require('motion-input', {
       descriptors: ['accelerationIncludingGravity', 'deviceorientation']

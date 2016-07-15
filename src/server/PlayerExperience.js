@@ -11,7 +11,8 @@ export default class PlayerExperience extends Experience {
     this.sync = this.require('sync');
 
     // local attributes
-    this.players = new Array();
+    const numClientMax = 5;
+    this.players = new Array(numClientMax);
   }
 
   // if anything needs to append when the experience starts
@@ -22,70 +23,40 @@ export default class PlayerExperience extends Experience {
   enter(client) {
     super.enter(client);
 
-    this.players.push(client);
-
-    if (this.players.length == 1){
-      this.send(this.players[0], 'status', 0);
+    // find room for client in local list
+    var emptyInd = this.findFirstEmpty(this.players);
+    if (emptyInd >= 0) {
+      // add client in local list
+      this.players[emptyInd] = client.uuid;
+      // define client beacon parameters
+      var beaconInfo = {
+        major: 0,
+        minor: emptyInd
+      };
+      // send beacon setup info to client
+      this.send(client, 'player:beacon', beaconInfo);
+      console.log('welcoming client:', emptyInd, this.players[emptyInd]);
     }
-    else{
-      this.send(client, 'status', 1);
-    }
-    this.receive(client, 'shake', (beaconInfos, when) => {
-      console.log(beaconInfos, when)
-      this.broadcast('player', client, 'shaked', beaconInfos, when);
-    });
-
   }
 
   exit(client) {
     super.exit(client);
 
-    console.log('++',this.players.length);
-    this.players.forEach((elmt, index) => { console.log(elmt.uuid); });
+    var elmtPos = this.players.map((x) => {
+      return x;
+    }).indexOf(client.uuid);
+    console.log('removing client:', elmtPos, this.players[elmtPos]);
+    this.players.splice(elmtPos, 1);
+  }
 
-    var repoll = false
-    if (client == this.players[0]) {repoll = true;}
-
-    this.players.forEach((elmt, index) => {
-      if (elmt == client) { this.players.splice(index,1); }
-    });
-
-    if (repoll && this.players.length != 0) {
-      // var rndm = Math.floor(Math.random() * this.players.length);
-      // this.players[0] = this.players[rndm];
-      // this.players.splice(rndm,1);
-      this.send(this.players[0], 'status', 0);
+  findFirstEmpty(array) {
+    var emptyInd = -1;
+    for (var i = 0; i < array.length; i++) {
+      if (array[i] == null) {
+        emptyInd = i;
+        break;
+      }
     }
-
-    console.log('--',this.players.length);
-    this.players.forEach((elmt, index) => { console.log(elmt.uuid); });
-
-    // // repoll for master if need be
-    // if (client == this.players[0] && this.players.length != 1){
-    //   var rndm = Math.floor(Math.random() * (this.players.length-1)) + 1;
-    //   // console.log('aa->',this.players.length, rndm);
-    //   // this.players.forEach((elmt, index) => {
-    //   //   console.log(elmt.uuid);
-    //   // });
-    //   this.players[0] = this.players[rndm];
-    //   this.players.splice(rndm,1);
-    //   // console.log('pp->',this.players.length);
-    //   // this.players.forEach((elmt, index) => {
-    //   //   console.log(elmt.uuid);
-    //   // });
-    //   this.send(this.players[0], 'status', 0);
-
-    // }
-
-    // remove from array
-    // console.log('++',this.players.length);
-    // this.players.forEach((elmt, index) => {
-    //   console.log(elmt.uuid);
-    // });
-    // var filtered = this.players.filter(function(el) { return el != client; });
-    // console.log('--',this.players.length);
-    // this.players.forEach((elmt, index) => {
-    //   console.log(elmt.uuid);
-    // });
+    return emptyInd;
   }
 }

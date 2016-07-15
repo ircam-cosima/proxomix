@@ -25,4 +25,7 @@
     </platform>
     <preference name="com.unarin.cordova.beacon.android.altbeacon.ForegroundBetweenScanPeriod" value="1000" />
     <preference name="com.unarin.cordova.beacon.android.altbeacon.ForegroundScanPeriod" value="1000" />
+    <platform name="ios">
+        <icon src="assets/Icon-60@2x.png" width="120" height="120" />
+    </platform>
 </widget>

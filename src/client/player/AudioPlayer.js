@@ -14,8 +14,7 @@ export default class AudioPlayer {
 
         // bind local functions
         this.updateTrack = this.updateTrack.bind(this);
-        this.rssiToGain = this.rssiToGain.bind(this);
-        this.calculateAccuracy = this.calculateAccuracy.bind(this);
+        this.distToGain = this.distToGain.bind(this);
         this.getNewTrack = this.getNewTrack.bind(this);
         this.removeUnusedTracks = this.removeUnusedTracks.bind(this);
 
@@ -25,42 +24,25 @@ export default class AudioPlayer {
 
     }
 
-    updateTrack(trackID, rssi) {
+    updateTrack(trackID, dist) {
         // create track if need be
         if (typeof this.tracks[trackID] === 'undefined') {
             this.tracks[trackID] = this.getNewTrack(trackID);
         }
-        // rssi-based update of track gain
-        var gainValue = this.rssiToGain(rssi);
+        // distance-based update of track gain
+        var gainValue = this.distToGain(dist);
         this.tracks[trackID].gDist.gain.linearRampToValueAtTime(this.tracks[trackID].gDist.gain.value, audioContext.currentTime);
         this.tracks[trackID].gDist.gain.linearRampToValueAtTime(Math.min(gainValue, 1.0), audioContext.currentTime + 0.5);
         this.tracks[trackID].lastUpdated = this.sync.getSyncTime();
     }
 
-    rssiToGain(rssi) {
-        var dist = this.calculateAccuracy(-55, rssi);
+    distToGain(dist) {
         var spread = 1; // -3dB at `spread`meters away
         var gain = 0.0;
         if (dist != 0.0) {
             gain = Math.exp(-Math.pow(dist, 2) / (Math.pow(spread, 2) / 0.7));
         }
-        // console.log('rssi:', Math.round(rssi*100)/100, ', dist:', Math.round(dist*100)/100, ', gain:', Math.round(gain*1000)/1000);
         return gain
-    }
-
-    calculateAccuracy(txPower, rssi) {
-        // convert to linear scale (~distance)
-        // from http://stackoverflow.com/questions/20416218/understanding-ibeacon-distancing
-        if (rssi == 0) {
-            return 0.0;
-        }
-
-        let ratio = rssi * 1.0 / txPower;
-        if (ratio < 1.0) {
-            return Math.pow(ratio, 10);
-        } else {
-            return (0.89976 * Math.pow(ratio, 7.7095) + 0.111);
-        }
     }
 
     getNewTrack(trackID) {

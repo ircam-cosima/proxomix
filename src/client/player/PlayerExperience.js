@@ -73,8 +73,12 @@ export default class PlayerExperience extends soundworks.Experience {
     this.localAudioPlayer = new AudioPlayer(this.sync, this.loader.buffers, audioFilesGains);
 
     // init beacon callback
-    if (this.beacon) this.beacon.addListener(this.beaconCallback);
-
+    if (this.beacon) {
+      // add callback, invoked whenever beacon scan is executed
+      this.beacon.addListener(this.beaconCallback);
+      // in dB (see beacon service for detail)
+      this.beacon.txPower = -55;
+    }
   }
 
   /**
@@ -135,8 +139,6 @@ export default class PlayerExperience extends soundworks.Experience {
       // start local sound
       this.localAudioPlayer.setLocalTrack(this.beacon.minor);
     }
-    console.log('jkjkj');
-    this.localAudioPlayer.setLocalTrack(0);
   }
 
   beaconCallback(pluginResult) {
@@ -144,12 +146,12 @@ export default class PlayerExperience extends soundworks.Experience {
     var log = '';
     pluginResult.beacons.forEach((beacon) => {
       log += 'iBeacon maj.min: ' + beacon.major + '.' + beacon.minor + '</br>' +
-        'rssi: ' + beacon.rssi + 'dB' + '</br>' +
-        '(' + beacon.proximity + ')' + '</br></br>';
-      // console.log(beacon.major + '.' + beacon.minor, beacon);
+             'rssi: ' + beacon.rssi + 'dB ~ dist: ' +
+             Math.round( this.beacon.rssiToDist(beacon.rssi)*100, 2 ) / 100 + 'm' + '</br>' +
+             '(' + beacon.proximity + ')' + '</br></br>';
 
       if (beacon.minor < this.loader.buffers.length) {
-        this.localAudioPlayer.updateTrack(beacon.minor, beacon.rssi);
+        this.localAudioPlayer.updateTrack(beacon.minor, this.beacon.rssiToDist(beacon.rssi));
       }
 
     });

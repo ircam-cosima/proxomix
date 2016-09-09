@@ -25,7 +25,7 @@ export default class PlayerExperience extends Experience {
 
     // find room for client in local list
     var emptyInd = this.findFirstEmpty(this.players);
-    if (emptyInd >= 0) {
+    if (emptyInd < 0) emptyInd = this.players.length;
       // add client in local list
       this.players[emptyInd] = client.uuid;
       // define client beacon parameters
@@ -36,7 +36,6 @@ export default class PlayerExperience extends Experience {
       // send beacon setup info to client
       this.send(client, 'player:beacon', beaconInfo);
       console.log('welcoming client:', emptyInd, this.players[emptyInd]);
-    }
   }
 
   exit(client) {
@@ -46,7 +45,8 @@ export default class PlayerExperience extends Experience {
       return x;
     }).indexOf(client.uuid);
     console.log('removing client:', elmtPos, this.players[elmtPos]);
-    this.players.splice(elmtPos, 1);
+    // this.players.splice(elmtPos, 1);
+    this.players[elmtPos] = null; // can't use splice, have to keep index consistent since it points to clients' beacon minor IDs.
   }
 
   findFirstEmpty(array) {

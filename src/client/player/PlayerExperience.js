@@ -6,6 +6,7 @@ import Beacon from '../../shared/client/services/Beacon';
 
 // Import local classes
 import AudioPlayer from './AudioPlayer';
+import AudioAnalyser from './AudioAnalyser';
 import PlayerRenderer from './PlayerRenderer';
 
 // Define audio context
@@ -71,6 +72,7 @@ export default class PlayerExperience extends soundworks.Experience {
     // local attributes
     const audioFilesGains = this.audioFiles.map((a) => { return a.gain; });
     this.localAudioPlayer = new AudioPlayer(this.sync, this.loader.buffers, audioFilesGains);
+    this.audioAnalyser = new AudioAnalyser();
 
     // init beacon callback
     if (this.beacon) {
@@ -95,6 +97,8 @@ export default class PlayerExperience extends soundworks.Experience {
 
     // // DEBUG
     // this.beacon = {major:0, minor: 0};
+    // this.beacon.restartAdvertising = function(){};
+    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
     // window.setInterval(() => {
     //   var pluginResult = { beacons : [] };
     //   for (let i = 0; i < 4; i++) {
@@ -134,10 +138,23 @@ export default class PlayerExperience extends soundworks.Experience {
       this.beacon.major = beaconInfo.major;
       this.beacon.minor = beaconInfo.minor;
       this.beacon.restartAdvertising();
-      // add local beacon info on screen
-      document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + this.beacon.major + '.' + this.beacon.minor;
-      // start local sound
-      this.localAudioPlayer.setLocalTrack(this.beacon.minor);
+      if ( beaconInfo.minor > (this.loader.buffers.length - 1)  ) {
+        // add local beacon info on screen
+        document.getElementById('localInfo').innerHTML = 'NO MORE ROOM FOR YOU<br>(you may try hassling someone into quitting the experience and reconnect)';
+        this.renderer.setBkgColor([ 9, 8, 40 ]);
+      }
+      else{
+        // add local beacon info on screen
+        document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + this.beacon.major + '.' + this.beacon.minor;        
+        // change background color based on beacon minor id
+        this.renderer.setBkgColor(this.beacon.minor);
+        // start local sound
+        let src = this.localAudioPlayer.setLocalTrack(this.beacon.minor);
+        // connect local source to audio analyser for visual feedback (e.g. screen color) on local sound amplitude
+        src.connect(this.audioAnalyser.in);
+        // give renderer a handle to audioAnalyser
+        this.renderer.handleToAudioAnalyser = this.audioAnalyser;
+      }
     }
   }
 

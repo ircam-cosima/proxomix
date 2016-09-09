@@ -69,8 +69,8 @@ export default class AudioPlayer {
 
         // sync source
         var startTime = this.sync.getSyncTime() % track.src.buffer.duration;
-        track.src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
-        // track.src.start(audioContext.currentTime, 0, 30);
+        // track.src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
+        track.src.start(startTime);
 
         return track
     }
@@ -80,6 +80,7 @@ export default class AudioPlayer {
             // console.log('track:', trackID, 'last update:', track.lastUpdated, '(current:',this.sync.getSyncTime(), ')');
             if ((this.sync.getSyncTime() - track.lastUpdated) > 6.0) {
                 // fade out
+                track.gDist.gain.cancelScheduledValues();
                 track.gDist.gain.linearRampToValueAtTime(track.gDist.gain.value, audioContext.currentTime);
                 track.gDist.gain.linearRampToValueAtTime(0.0, audioContext.currentTime + 1.0);
                 // remove from local
@@ -95,12 +96,15 @@ export default class AudioPlayer {
 
         var gain = audioContext.createGain();
         gain.gain.value = this.gains[trackID];
-
-        console.log(gain.gain.value, src.buffer);
+        gain.gain.linearRampToValueAtTime(0.0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(1.0, audioContext.currentTime + 1.0);
 
         src.connect(gain);
         gain.connect(audioContext.destination);
         var startTime = this.sync.getSyncTime() % src.buffer.duration;
-        src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
+        // src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
+        src.start(startTime);
+
+        return src
     }
 }

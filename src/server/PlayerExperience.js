@@ -26,16 +26,23 @@ export default class PlayerExperience extends Experience {
     // find room for client in local list
     var emptyInd = this.findFirstEmpty(this.players);
     if (emptyInd < 0) emptyInd = this.players.length;
-      // add client in local list
-      this.players[emptyInd] = client.uuid;
-      // define client beacon parameters
-      var beaconInfo = {
-        major: 0,
-        minor: emptyInd
-      };
-      // send beacon setup info to client
-      this.send(client, 'player:beacon', beaconInfo);
-      console.log('welcoming client:', emptyInd, this.players[emptyInd]);
+    // add client in local list
+    this.players[emptyInd] = client.uuid;
+    // define client beacon parameters
+    var beaconInfo = {
+      major: 0,
+      minor: emptyInd
+    };
+    // send beacon setup info to client
+    this.send(client, 'player:beacon', beaconInfo);
+    console.log('welcoming client:', emptyInd, this.players[emptyInd]);
+
+    // add callback used to spread current client orientation for sound effect
+    this.receive(client, 'soundEffect1Value', ( val ) => {
+      let clientInd = this.players.map((x) => { return x; }).indexOf(client.uuid);
+      var msg = {deviceId: clientInd, value: val};
+      this.broadcast('player', client, 'soundEffect1Bundle', msg);
+    });
   }
 
   exit(client) {

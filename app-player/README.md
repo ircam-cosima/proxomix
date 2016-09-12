@@ -13,6 +13,8 @@ see ../README.md
 
 ### Setup Cordova
 
+* install cordova (https://cordova.apache.org/docs/fr/latest/guide/cli/)
+
 * setup cordova environment (add cordova folders not kept on the repo)
 
 ```sh

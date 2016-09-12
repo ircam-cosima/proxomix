@@ -7,6 +7,12 @@ export default class AudioPlayer {
     constructor(sync, buffers, gains) {
         this.masterGain = audioContext.createGain();
         this.masterGain.connect(audioContext.destination);
+
+        this.filter = audioContext.createBiquadFilter();
+        this.filter.type = 'lowpass';
+        this.filter.frequency.value = 22050;
+        this.filter.connect(this.masterGain);
+
         this.sync = sync;
         this.buffers = buffers;
         this.gains = gains;
@@ -51,6 +57,7 @@ export default class AudioPlayer {
             src: audioContext.createBufferSource(),
             gMain: audioContext.createGain(),
             gDist: audioContext.createGain(),
+            filter: audioContext.createBiquadFilter(),
             lastUpdated: 0
         };
 
@@ -62,15 +69,21 @@ export default class AudioPlayer {
         track.gDist.gain.value = 0.0;
         track.lastUpdated = this.sync.getSyncTime();
 
+        // setup effect 1 
+        track.filter.type = 'lowpass';
+        track.filter.frequency.value = 22050;
+
         // connect graph
-        track.src.connect(track.gMain);
+        track.src.connect(track.filter);
+        track.filter.connect(track.gMain);
         track.gMain.connect(track.gDist);
         track.gDist.connect(this.masterGain);
 
-        // sync source
-        var startTime = this.sync.getSyncTime() % track.src.buffer.duration;
+        // sync start
+        var startTime = track.src.buffer.duration - (this.sync.getSyncTime() % track.src.buffer.duration);
+        console.log('startTime', startTime, 'syncTime', this.sync.getSyncTime(), 'src dur:', track.src.buffer.duration);
         // track.src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
-        track.src.start(startTime);
+        track.src.start(audioContext.currentTime + startTime);
 
         return track
     }
@@ -90,21 +103,41 @@ export default class AudioPlayer {
     }
 
     setLocalTrack(trackID) {
+        // setup source
         var src = audioContext.createBufferSource();
         src.buffer = this.buffers[trackID];
         src.loop = true;
 
+        // setup gain
         var gain = audioContext.createGain();
         gain.gain.value = this.gains[trackID];
         gain.gain.linearRampToValueAtTime(0.0, audioContext.currentTime);
         gain.gain.linearRampToValueAtTime(1.0, audioContext.currentTime + 1.0);
 
+        // connect graph
         src.connect(gain);
-        gain.connect(audioContext.destination);
-        var startTime = this.sync.getSyncTime() % src.buffer.duration;
-        // src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
-        src.start(startTime);
+        gain.connect(this.filter);
 
-        return src
+        // sync start
+        var startTime = src.buffer.duration - (this.sync.getSyncTime() % src.buffer.duration);
+        // src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
+        src.start(audioContext.currentTime + startTime);
+
+        return this.filter;
+    }
+
+    setEffect1Value(id, val) {
+        // check if relevant audio source (either me or present neighbor)
+        if( (typeof this.tracks[id] !== 'undefined') || (id === -1) ) {
+            // convert val to frequency value (exp scale to match perception)
+            let valEffective = 22050*(Math.exp(5*val)-1)/(Math.exp(5)-1);
+            // myself
+            if ( id == -1 ) this.filter.frequency.value = valEffective;
+            // others
+            else {
+                // console.log(id, val, valEffective);
+                this.tracks[id].filter.frequency.value = valEffective;
+            }
+        }
     }
 }

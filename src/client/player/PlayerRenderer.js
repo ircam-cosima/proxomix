@@ -80,7 +80,7 @@ export default class PlayerRenderer extends Renderer {
    */
   setBkgLightness(lightness) {
     // added mecanism to sharpen visual feedback 
-    let filteredLightness = (lightness > 0.7) ? 70*lightness : (Math.max(this.bkgColor[2]-5, 0));
+    let filteredLightness = (lightness > 0.1) ? 70*lightness : (Math.max(this.bkgColor[2]-5, 0));
     this.bkgColor[2] = filteredLightness;
     this.bkgChangeColor = true;
   }  

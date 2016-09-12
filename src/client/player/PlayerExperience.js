@@ -51,6 +51,7 @@ export default class PlayerExperience extends soundworks.Experience {
     this.loader = this.require('loader', { files: audioFilesName });
     this.platform = this.require('platform', { features: ['web-audio'] });
     this.sync = this.require('sync');
+    this.motionInput = this.require('motion-input', { descriptors: ['accelerationIncludingGravity', 'deviceorientation'] });
     if (window.cordova) {
       // beacon only work in cordova mode since it needs access right to BLE
       this.beacon = this.require('beacon', { uuid: beaconUUID });
@@ -59,6 +60,7 @@ export default class PlayerExperience extends soundworks.Experience {
     // bind local functions
     this.beaconCallback = this.beaconCallback.bind(this);
     this.onPlayerBeacon = this.onPlayerBeacon.bind(this);
+    this.onSoundEffect1Bundle = this.onSoundEffect1Bundle.bind(this);
   }
 
   init() {
@@ -94,6 +96,7 @@ export default class PlayerExperience extends soundworks.Experience {
 
     // Setup listeners for player connections / disconnections
     this.receive('player:beacon', this.onPlayerBeacon);
+    this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
     // // DEBUG
     // this.beacon = {major:0, minor: 0};
@@ -123,7 +126,30 @@ export default class PlayerExperience extends soundworks.Experience {
       });
     }
 
+    // setup motion input listeners
+    if (this.motionInput.isAvailable('deviceorientation')) {
+      this.motionInput.addListener('deviceorientation', (data) => {
 
+          // get acceleration data
+          // const mag = Math.sqrt(data[0] * data[0] + data[1] * data[1] + data[2] * data[2]);
+
+          // format data
+          let val = Math.min( Math.max(data[1], 0), 90 ) / 90;
+
+          // update local audio
+          this.localAudioPlayer.setEffect1Value( -1, val );
+
+          // update server (hence neighbors)
+          this.send('soundEffect1Value', val);
+
+      });
+    }    
+
+
+  }
+
+  onSoundEffect1Bundle(msg) {
+    this.localAudioPlayer.setEffect1Value( msg.deviceId, msg.value );
   }
 
   /**
@@ -149,9 +175,9 @@ export default class PlayerExperience extends soundworks.Experience {
         // change background color based on beacon minor id
         this.renderer.setBkgColor(this.beacon.minor);
         // start local sound
-        let src = this.localAudioPlayer.setLocalTrack(this.beacon.minor);
+        let out = this.localAudioPlayer.setLocalTrack(this.beacon.minor);
         // connect local source to audio analyser for visual feedback (e.g. screen color) on local sound amplitude
-        src.connect(this.audioAnalyser.in);
+        out.connect(this.audioAnalyser.in);
         // give renderer a handle to audioAnalyser
         this.renderer.handleToAudioAnalyser = this.audioAnalyser;
       }

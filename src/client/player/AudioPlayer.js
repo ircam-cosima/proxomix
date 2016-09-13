@@ -10,7 +10,7 @@ export default class AudioPlayer {
 
         this.filter = audioContext.createBiquadFilter();
         this.filter.type = 'lowpass';
-        this.filter.frequency.value = 22050;
+        this.filter.frequency.value = 0; // 22050;
         this.filter.connect(this.masterGain);
 
         this.sync = sync;
@@ -81,8 +81,6 @@ export default class AudioPlayer {
 
         // sync start
         var startTime = track.src.buffer.duration - (this.sync.getSyncTime() % track.src.buffer.duration);
-        console.log('startTime', startTime, 'syncTime', this.sync.getSyncTime(), 'src dur:', track.src.buffer.duration);
-        // track.src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
         track.src.start(audioContext.currentTime + startTime);
 
         return track
@@ -120,7 +118,6 @@ export default class AudioPlayer {
 
         // sync start
         var startTime = src.buffer.duration - (this.sync.getSyncTime() % src.buffer.duration);
-        // src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
         src.start(audioContext.currentTime + startTime);
 
         return this.filter;
@@ -130,7 +127,7 @@ export default class AudioPlayer {
         // check if relevant audio source (either me or present neighbor)
         if( (typeof this.tracks[id] !== 'undefined') || (id === -1) ) {
             // convert val to frequency value (exp scale to match perception)
-            let valEffective = 22050*(Math.exp(5*val)-1)/(Math.exp(5)-1);
+            let valEffective = Math.max( 20, 22050*(Math.exp(5*val)-1)/(Math.exp(5)-1) );
             // myself
             if ( id == -1 ) this.filter.frequency.value = valEffective;
             // others

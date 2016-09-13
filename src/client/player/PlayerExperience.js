@@ -75,6 +75,7 @@ export default class PlayerExperience extends soundworks.Experience {
     const audioFilesGains = this.audioFiles.map((a) => { return a.gain; });
     this.localAudioPlayer = new AudioPlayer(this.sync, this.loader.buffers, audioFilesGains);
     this.audioAnalyser = new AudioAnalyser();
+    this.lastDeviceOrientationValue = -999.0;
 
     // init beacon callback
     if (this.beacon) {
@@ -130,17 +131,20 @@ export default class PlayerExperience extends soundworks.Experience {
     if (this.motionInput.isAvailable('deviceorientation')) {
       this.motionInput.addListener('deviceorientation', (data) => {
 
-          // get acceleration data
-          // const mag = Math.sqrt(data[0] * data[0] + data[1] * data[1] + data[2] * data[2]);
+          // throttle device orientation broadcast
+          if( Math.abs(data[1] - this.lastDeviceOrientationValue) > 5 ) { 
+            // update "last value"
+            this.lastDeviceOrientationValue = data[1];
 
-          // format data
-          let val = Math.min( Math.max(data[1], 0), 90 ) / 90;
+            // format data
+            let val = Math.min( Math.max(data[1], 0), 90 ) / 90;
 
-          // update local audio
-          this.localAudioPlayer.setEffect1Value( -1, val );
+            // update local audio
+            this.localAudioPlayer.setEffect1Value( -1, val );
 
-          // update server (hence neighbors)
-          this.send('soundEffect1Value', val);
+            // update server (hence neighbors)
+            this.send('soundEffect1Value', val);
+          }
 
       });
     }    

@@ -7,12 +7,7 @@ export default class PlayerExperience extends Experience {
 
     // services
     this.checkin = this.require('checkin');
-    this.sharedConfig = this.require('shared-config');
     this.sync = this.require('sync');
-
-    // local attributes
-    const numClientMax = 5;
-    this.players = new Array(numClientMax);
   }
 
   // if anything needs to append when the experience starts
@@ -23,47 +18,14 @@ export default class PlayerExperience extends Experience {
   enter(client) {
     super.enter(client);
 
-    // find room for client in local list
-    var emptyInd = this.findFirstEmpty(this.players);
-    if (emptyInd < 0) emptyInd = this.players.length;
-    // add client in local list
-    this.players[emptyInd] = client.uuid;
-    // define client beacon parameters
-    var beaconInfo = {
-      major: 0,
-      minor: emptyInd
-    };
-    // send beacon setup info to client
-    this.send(client, 'player:beacon', beaconInfo);
-    console.log('welcoming client:', emptyInd, this.players[emptyInd]);
-
     // add callback used to spread current client orientation for sound effect
     this.receive(client, 'soundEffect1Value', ( val ) => {
-      let clientInd = this.players.map((x) => { return x; }).indexOf(client.uuid);
-      var msg = {deviceId: clientInd, value: val};
+      var msg = { deviceId: client.index, value: val };
       this.broadcast('player', client, 'soundEffect1Bundle', msg);
     });
   }
 
   exit(client) {
     super.exit(client);
-
-    var elmtPos = this.players.map((x) => {
-      return x;
-    }).indexOf(client.uuid);
-    console.log('removing client:', elmtPos, this.players[elmtPos]);
-    // this.players.splice(elmtPos, 1);
-    this.players[elmtPos] = null; // can't use splice, have to keep index consistent since it points to clients' beacon minor IDs.
-  }
-
-  findFirstEmpty(array) {
-    var emptyInd = -1;
-    for (var i = 0; i < array.length; i++) {
-      if (array[i] == null) {
-        emptyInd = i;
-        break;
-      }
-    }
-    return emptyInd;
   }
 }

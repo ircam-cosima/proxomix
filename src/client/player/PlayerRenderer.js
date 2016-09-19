@@ -9,7 +9,7 @@ export default class PlayerRenderer extends Renderer {
 
     // local attributes
     this.bkgChangeColor = false;
-    this.handleToAudioAnalyser = null;
+    this.audioAnalyser = null;
 
     // // get list of background colors, based on color-scheme lib,
     // // see http://c0bra.github.io/color-scheme-js/
@@ -21,12 +21,14 @@ export default class PlayerRenderer extends Renderer {
     //   .web_safe(true);
     // this.bkgColorList = scheme.colors();
 
-    this.bkgColorList = [ [11, 83, 36],
-                          [30, 100, 42] ,   
-                          [51, 11, 25],
-                          [199, 16, 34],
-                          [210, 17, 21],
-                          [0, 0, 93] ]
+    this.bkgColorList = [
+      [11, 83, 36],
+      [30, 100, 42],
+      [51, 11, 25],
+      [199, 16, 34],
+      [210, 17, 21],
+      [0, 0, 93]
+    ];
   }
 
   /**
@@ -47,8 +49,11 @@ export default class PlayerRenderer extends Renderer {
    * @param {CanvasRenderingContext2D} ctx - canvas 2D rendering context
    */
   render(ctx) {
-    if( this.handleToAudioAnalyser )
-      this.setBkgLightness( this.handleToAudioAnalyser.getAmplitude() )
+    if(this.audioAnalyser) {
+      const power = this.audioAnalyser.getPower();
+      this.setBkgLightness(power);
+    }
+
     if (this.bkgChangeColor) {
       ctx.save();
       ctx.globalAlpha = 1;
@@ -57,7 +62,7 @@ export default class PlayerRenderer extends Renderer {
       ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
       ctx.fill();
       ctx.restore();
-      this.bkgChangeColor = false
+      this.bkgChangeColor = false;
     }
   }
 
@@ -67,10 +72,11 @@ export default class PlayerRenderer extends Renderer {
    * or @param {Array}  colorId - HSL color array
    */
   setBkgColor(colorId) {
-    // direct color HSL
-    if (colorId.length === 3) this.bkgColor = colorId;
-    // or give color ID to checkout in local color list
-    else this.bkgColor = this.bkgColorList[colorId % this.bkgColorList.length];
+    if (colorId.length === 3)
+      this.bkgColor = colorId; // direct color HSL
+    else
+      this.bkgColor = this.bkgColorList[colorId % this.bkgColorList.length]; // or give color ID to checkout in local color list
+
     this.bkgChangeColor = true;
   }
 
@@ -79,9 +85,9 @@ export default class PlayerRenderer extends Renderer {
    * @param {Number} lightness - color lightness (HSL - L value)
    */
   setBkgLightness(lightness) {
-    // added mecanism to sharpen visual feedback 
-    let filteredLightness = (lightness > 0.1) ? 70*lightness : (Math.max(this.bkgColor[2]-5, 0));
+    // added mecanism to sharpen visual feedback
+    let filteredLightness = (lightness > 0.1) ? 75 * lightness : (Math.max(this.bkgColor[2] - 5, 0));
     this.bkgColor[2] = filteredLightness;
     this.bkgChangeColor = true;
-  }  
+  }
 }

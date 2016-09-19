@@ -2,142 +2,163 @@ import * as soundworks from 'soundworks/client';
 
 const audioContext = soundworks.audioContext;
 
+class LoopTrack {
+  constructor() {
+    const gain = audioContext.createGain();
+    gain.gain.value = 0;
+
+    // effect 1
+    const cutoff = audioContext.createBiquadFilter();
+    cutoff.connect(gain);
+    cutoff.type = 'lowpass';
+    this.minCutoffFreq = 5;
+    this.maxCutoffFreq = audioContext.sampleRate / 2;
+    this.logCutoffRatio = Math.log(this.maxCutoffFreq / this.minCutoffFreq);
+    cutoff.frequency.value = this.minCutoffFreq;
+
+    const src = audioContext.createBufferSource();
+    src.connect(cutoff);
+
+    this.src = src;
+    this.gain = gain;
+    this.cutoff = cutoff;
+    this.lastUpdated = 0;
+  }
+
+  connect(node) {
+    this.gain.connect(node);
+  }
+
+  disconnect(node) {
+    this.gain.disconnect(node);
+  }
+
+  start(audioTime, syncTime, buffer) {
+    const duration = buffer.duration;
+    const offset = syncTime % duration;
+
+    this.src.buffer = buffer;
+    this.src.start(audioTime, offset);
+    this.src.loop = true;
+
+    this.lastUpdated = syncTime;
+  }
+
+  setEffect1Value(val) {
+    const cutoffFreq = this.minCutoffFreq * Math.exp(this.logCutoffRatio * val);
+    this.cutoff.frequency.value = cutoffFreq;
+  }
+
+  setGain(val, fadeTime = 0) {
+    if(fadeTime > 0) {
+      const param = this.gain.gain;
+      const audioTime = audioContext.currentTime;
+      const currentValue = param.value;
+      param.cancelScheduledValues(audioTime);
+      param.linearRampToValueAtTime(currentValue, audioTime);
+      param.linearRampToValueAtTime(val, audioTime + fadeTime);
+    } else {
+      this.gain.gain.value = val;
+    }
+  }
+
+  updateDistance(audioTime, syncTime, dist) {
+    const spread = 1; // -3dB at spread meters away
+    let gain = 0;
+
+    if (dist !== 0) {
+      gain = Math.exp(-Math.pow(dist, 2) / (Math.pow(spread, 2) / 0.7));
+      gain = Math.min(1, gain);
+    }
+
+    this.setGain(gain, 0.5);
+    this.lastUpdated = syncTime;
+  }
+}
+
 export default class AudioPlayer {
+  constructor(sync, scheduler, buffers) {
+    this.sync = sync;
+    this.scheduler = scheduler;
+    this.buffers = buffers;
 
-    constructor(sync, buffers, gains) {
-        this.masterGain = audioContext.createGain();
-        this.masterGain.connect(audioContext.destination);
+    this.localTrack = new LoopTrack();
+    this.localTrack.connect(audioContext.destination);
+    this.remoteTracks = new Map();
 
-        this.filter = audioContext.createBiquadFilter();
-        this.filter.type = 'lowpass';
-        this.filter.frequency.value = 22050;
-        this.filter.connect(this.masterGain);
+    this.removeUnusedTracks = this.removeUnusedTracks.bind(this);
 
-        this.sync = sync;
-        this.buffers = buffers;
-        this.gains = gains;
-        this.tracks = [];
+    window.setInterval(() => {
+      this.removeUnusedTracks();
+    }, 3000);
+  }
 
-        // bind local functions
-        this.updateTrack = this.updateTrack.bind(this);
-        this.distToGain = this.distToGain.bind(this);
-        this.getNewTrack = this.getNewTrack.bind(this);
-        this.removeUnusedTracks = this.removeUnusedTracks.bind(this);
+  getTrack(id) {
+    let track = this.remoteTracks.get(id);
 
-        window.setInterval(() => {
-            this.removeUnusedTracks();
-        }, 3000);
+    // create track if needed
+    if (!track) {
+      track = new LoopTrack();
+      track.connect(audioContext.destination);
 
+      const audioTime = audioContext.currentTime;
+      const syncTime = this.sync.getSyncTime(audioTime);
+      const buffer = this.buffers[id];
+      track.start(audioTime, syncTime, buffer);
+
+      this.remoteTracks.set(id, track);
     }
 
-    updateTrack(trackID, dist) {
-        // create track if need be
-        if (typeof this.tracks[trackID] === 'undefined') {
-            this.tracks[trackID] = this.getNewTrack(trackID);
-        }
-        // distance-based update of track gain
-        var gainValue = this.distToGain(dist);
-        this.tracks[trackID].gDist.gain.linearRampToValueAtTime(this.tracks[trackID].gDist.gain.value, audioContext.currentTime);
-        this.tracks[trackID].gDist.gain.linearRampToValueAtTime(Math.min(gainValue, 1.0), audioContext.currentTime + 0.5);
-        this.tracks[trackID].lastUpdated = this.sync.getSyncTime();
-    }
+    return track;
+  }
 
-    distToGain(dist) {
-        var spread = 1; // -3dB at `spread`meters away
-        var gain = 0.0;
-        if (dist != 0.0) {
-            gain = Math.exp(-Math.pow(dist, 2) / (Math.pow(spread, 2) / 0.7));
-        }
-        return gain
-    }
+  updateTrack(id, dist) {
+    const audioTime = audioContext.currentTime;
+    const syncTime = this.sync.getSyncTime(audioTime);
+    const track = this.getTrack(id);
 
-    getNewTrack(trackID) {
-        // create track
-        var track = {
-            src: audioContext.createBufferSource(),
-            gMain: audioContext.createGain(),
-            gDist: audioContext.createGain(),
-            filter: audioContext.createBiquadFilter(),
-            lastUpdated: 0
-        };
+    if(track)
+      track.updateDistance(audioTime, syncTime, dist);
+  }
 
-        // setup track
-        console.log(trackID, this.buffers[trackID]);
-        track.src.buffer = this.buffers[trackID];
-        track.src.loop = true;
-        track.gMain.gain.value = Math.min(Math.abs(this.gains[trackID]), 3.0);
-        track.gDist.gain.value = 0.0;
-        track.lastUpdated = this.sync.getSyncTime();
+  removeUnusedTracks() {
+    const audioTime = audioContext.currentTime;
+    const syncTime = this.sync.getSyncTime(audioTime);
 
-        // setup effect 1 
-        track.filter.type = 'lowpass';
-        track.filter.frequency.value = 22050;
+    this.remoteTracks.forEach((track, id) => {
+      if ((syncTime - track.lastUpdated) > 6) {
+        track.setGain(0, 1); // fade out in 1 sec
+        this.remoteTracks.delete(id);
+      }
+    });
+  }
 
-        // connect graph
-        track.src.connect(track.filter);
-        track.filter.connect(track.gMain);
-        track.gMain.connect(track.gDist);
-        track.gDist.connect(this.masterGain);
+  start(id) {
+    const buffer = this.buffers[id];
+    const audioTime = audioContext.currentTime;
+    const syncTime = this.sync.getSyncTime(audioTime);
+    this.localTrack.start(audioTime, syncTime, buffer);
+    this.localTrack.setGain(1);
 
-        // sync start
-        var startTime = track.src.buffer.duration - (this.sync.getSyncTime() % track.src.buffer.duration);
-        console.log('startTime', startTime, 'syncTime', this.sync.getSyncTime(), 'src dur:', track.src.buffer.duration);
-        // track.src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
-        track.src.start(audioContext.currentTime + startTime);
+  }
 
-        return track
-    }
+  setEffect1Value(id, val) {
+    let track;
 
-    removeUnusedTracks() {
-        this.tracks.forEach((track, trackID) => {
-            // console.log('track:', trackID, 'last update:', track.lastUpdated, '(current:',this.sync.getSyncTime(), ')');
-            if ((this.sync.getSyncTime() - track.lastUpdated) > 6.0) {
-                // fade out
-                track.gDist.gain.cancelScheduledValues();
-                track.gDist.gain.linearRampToValueAtTime(track.gDist.gain.value, audioContext.currentTime);
-                track.gDist.gain.linearRampToValueAtTime(0.0, audioContext.currentTime + 1.0);
-                // remove from local
-                this.tracks.splice(trackID, 1);
-            }
-        });
-    }
+    if (id === 'local')
+      track = this.localTrack;
+    else
+      track = this.remoteTracks.get(id);
 
-    setLocalTrack(trackID) {
-        // setup source
-        var src = audioContext.createBufferSource();
-        src.buffer = this.buffers[trackID];
-        src.loop = true;
+    if(track)
+      track.setEffect1Value(val);
+  }
 
-        // setup gain
-        var gain = audioContext.createGain();
-        gain.gain.value = this.gains[trackID];
-        gain.gain.linearRampToValueAtTime(0.0, audioContext.currentTime);
-        gain.gain.linearRampToValueAtTime(1.0, audioContext.currentTime + 1.0);
+  connect(node) {
+    this.localTrack.connect(node);
+  }
 
-        // connect graph
-        src.connect(gain);
-        gain.connect(this.filter);
-
-        // sync start
-        var startTime = src.buffer.duration - (this.sync.getSyncTime() % src.buffer.duration);
-        // src.start(0, startTime, 30); // dirty fix for flawed mp3, to be removed
-        src.start(audioContext.currentTime + startTime);
-
-        return this.filter;
-    }
-
-    setEffect1Value(id, val) {
-        // check if relevant audio source (either me or present neighbor)
-        if( (typeof this.tracks[id] !== 'undefined') || (id === -1) ) {
-            // convert val to frequency value (exp scale to match perception)
-            let valEffective = 22050*(Math.exp(5*val)-1)/(Math.exp(5)-1);
-            // myself
-            if ( id == -1 ) this.filter.frequency.value = valEffective;
-            // others
-            else {
-                // console.log(id, val, valEffective);
-                this.tracks[id].filter.frequency.value = valEffective;
-            }
-        }
-    }
+  disconnect(node) {
+    this.localTrack.disconnect(node);
+  }
 }

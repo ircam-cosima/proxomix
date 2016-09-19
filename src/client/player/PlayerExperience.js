@@ -9,8 +9,8 @@ import AudioPlayer from './AudioPlayer';
 import AudioAnalyser from './AudioAnalyser';
 import PlayerRenderer from './PlayerRenderer';
 
-// Define audio context
 const audioContext = soundworks.audioContext;
+const client = soundworks.client;
 
 // Define DOM elements
 const viewTemplate = `
@@ -47,11 +47,13 @@ export default class PlayerExperience extends soundworks.Experience {
     this.audioFiles = audioFiles;
 
     // configure required services
-    const audioFilesName = audioFiles.map((a) => { return a.fileName; });
-    this.loader = this.require('loader', { files: audioFilesName });
+    this.loader = this.require('loader', { files: audioFiles });
     this.platform = this.require('platform', { features: ['web-audio'] });
+    this.checkin = this.require('checkin');
     this.sync = this.require('sync');
-    this.motionInput = this.require('motion-input', { descriptors: ['accelerationIncludingGravity', 'deviceorientation'] });
+    this.scheduler = this.require('scheduler');
+    this.motionInput = this.require('motion-input', { descriptors: ['accelerationIncludingGravity']});
+
     if (window.cordova) {
       // beacon only work in cordova mode since it needs access right to BLE
       this.beacon = this.require('beacon', { uuid: beaconUUID });
@@ -59,7 +61,6 @@ export default class PlayerExperience extends soundworks.Experience {
 
     // bind local functions
     this.beaconCallback = this.beaconCallback.bind(this);
-    this.onPlayerBeacon = this.onPlayerBeacon.bind(this);
     this.onSoundEffect1Bundle = this.onSoundEffect1Bundle.bind(this);
   }
 
@@ -72,9 +73,9 @@ export default class PlayerExperience extends soundworks.Experience {
     this.view = this.createView();
 
     // local attributes
-    const audioFilesGains = this.audioFiles.map((a) => { return a.gain; });
-    this.localAudioPlayer = new AudioPlayer(this.sync, this.loader.buffers, audioFilesGains);
     this.audioAnalyser = new AudioAnalyser();
+    this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers);
+    this.audioPlayer.connect(this.audioAnalyser.input);
 
     // init beacon callback
     if (this.beacon) {
@@ -95,111 +96,83 @@ export default class PlayerExperience extends soundworks.Experience {
     this.show();
 
     // Setup listeners for player connections / disconnections
-    this.receive('player:beacon', this.onPlayerBeacon);
     this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
-    // // DEBUG
-    // this.beacon = {major:0, minor: 0};
-    // this.beacon.restartAdvertising = function(){};
-    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
-    // window.setInterval(() => {
-    //   var pluginResult = { beacons : [] };
-    //   for (let i = 0; i < 4; i++) {
-    //     var beacon = {
-    //       major: 0,
-    //       minor: i,
-    //       rssi: -45 - i * 5,
-    //       proximity : 'hi',
-    //     };
-    //     pluginResult.beacons.push(beacon);
-    //   }
-    //   this.beaconCallback(pluginResult);
-    // }, 1000);
+    // initialize rendering (change background color based on beacon id)
+    this.renderer = new PlayerRenderer();
+    this.view.addRenderer(this.renderer);
 
     if (this.beacon) {
-      // initialize rendering (change background color based on beacon id)
-      this.renderer = new PlayerRenderer();
-      this.view.addRenderer(this.renderer);
-      this.renderer.setBkgColor(this.beacon.minor);
+      const major = 0;
+      const minor = client.index;
+
+      // change local beacon info
+      this.beacon.major = major;
+      this.beacon.minor = minor;
+      this.beacon.restartAdvertising();
+
+      // add local beacon info on screen
+      document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + major + '.' + minor;
+
+      // change background color based on beacon minor id
+      this.renderer.setBkgColor(minor);
+
+      // start local sound
+      this.audioPlayer.start(minor);
+
+      // give renderer a handle to audioAnalyser
+      this.renderer.audioAnalyser = this.audioAnalyser;
+      this.renderer.setBkgColor(minor);
+
       window.addEventListener('orientationchange', () => {
-        this.renderer.setBkgColor(this.beacon.minor);
+        this.renderer.setBkgColor(minor);
       });
     }
 
     // setup motion input listeners
-    if (this.motionInput.isAvailable('deviceorientation')) {
-      this.motionInput.addListener('deviceorientation', (data) => {
-
+    if (this.motionInput.isAvailable('accelerationIncludingGravity')) {
+      this.motionInput.addListener('accelerationIncludingGravity', (data) => {
           // get acceleration data
-          // const mag = Math.sqrt(data[0] * data[0] + data[1] * data[1] + data[2] * data[2]);
+          const accX = data[0];
+          const accY = data[1];
+          const accZ = data[2];
 
-          // format data
-          let val = Math.min( Math.max(data[1], 0), 90 ) / 90;
+          // calculate pitch and roll
+          const pitch = 2 * Math.atan2(accY, Math.sqrt(accZ * accZ + accX * accX)) / Math.PI;
+          const roll = -2 * Math.atan2(accX, Math.sqrt(accY * accY + accZ * accZ)) / Math.PI;
+
+          //const effect1Val = 1 - Math.min(0.8, Math.max(0, pitch)) / 0.8;
+          const effect1Val = 0.5 + Math.max(-0.8, Math.min(0.8, (accZ / 9.81))) / 1.6;
 
           // update local audio
-          this.localAudioPlayer.setEffect1Value( -1, val );
+          this.audioPlayer.setEffect1Value('local', effect1Val);
 
           // update server (hence neighbors)
-          this.send('soundEffect1Value', val);
-
+          this.send('soundEffect1Value', effect1Val);
       });
-    }    
-
-
+    }
   }
 
   onSoundEffect1Bundle(msg) {
-    this.localAudioPlayer.setEffect1Value( msg.deviceId, msg.value );
-  }
-
-  /**
-   * Function called when client enters experience
-   * (triggered by incoming server message 'player:beacon')
-   * @param {Object} beaconInfo (object holding client beacon parameters to be)
-   */
-  onPlayerBeacon(beaconInfo) {
-    console.log(beaconInfo, this.beacon);
-    if (this.beacon) {
-      // change local beacon info
-      this.beacon.major = beaconInfo.major;
-      this.beacon.minor = beaconInfo.minor;
-      this.beacon.restartAdvertising();
-      if ( beaconInfo.minor > (this.loader.buffers.length - 1)  ) {
-        // add local beacon info on screen
-        document.getElementById('localInfo').innerHTML = 'NO MORE ROOM FOR YOU<br>(you may try hassling someone into quitting the experience and reconnect)';
-        this.renderer.setBkgColor([ 9, 8, 40 ]);
-      }
-      else{
-        // add local beacon info on screen
-        document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + this.beacon.major + '.' + this.beacon.minor;        
-        // change background color based on beacon minor id
-        this.renderer.setBkgColor(this.beacon.minor);
-        // start local sound
-        let out = this.localAudioPlayer.setLocalTrack(this.beacon.minor);
-        // connect local source to audio analyser for visual feedback (e.g. screen color) on local sound amplitude
-        out.connect(this.audioAnalyser.in);
-        // give renderer a handle to audioAnalyser
-        this.renderer.handleToAudioAnalyser = this.audioAnalyser;
-      }
-    }
+    this.audioPlayer.setEffect1Value(msg.deviceId, msg.value);
   }
 
   beaconCallback(pluginResult) {
     // get beacon list
-    var log = '';
+    let log = '';
+
     pluginResult.beacons.forEach((beacon) => {
       log += 'iBeacon maj.min: ' + beacon.major + '.' + beacon.minor + '</br>' +
-             'rssi: ' + beacon.rssi + 'dB ~ dist: ' +
-             Math.round( this.beacon.rssiToDist(beacon.rssi)*100, 2 ) / 100 + 'm' + '</br>' +
-             '(' + beacon.proximity + ')' + '</br></br>';
+      'rssi: ' + beacon.rssi + 'dB ~ dist: ' +
+      Math.round(this.beacon.rssiToDist(beacon.rssi) * 100, 2 ) / 100 + 'm' + '</br>' +
+      '(' + beacon.proximity + ')' + '</br></br>';
 
       if (beacon.minor < this.loader.buffers.length) {
-        this.localAudioPlayer.updateTrack(beacon.minor, this.beacon.rssiToDist(beacon.rssi));
+        this.audioPlayer.updateTrack(beacon.minor, this.beacon.rssiToDist(beacon.rssi));
       }
-
     });
+
     // diplay beacon list on screen
     document.getElementById('logValues').innerHTML = log;
   }
-
 }

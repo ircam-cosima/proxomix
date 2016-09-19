@@ -77,6 +77,8 @@ export default class PlayerExperience extends soundworks.Experience {
     this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers);
     this.audioPlayer.connect(this.audioAnalyser.input);
 
+    this.lastEffect1Value = -Infinity;
+
     // init beacon callback
     if (this.beacon) {
       // add callback, invoked whenever beacon scan is executed
@@ -144,11 +146,15 @@ export default class PlayerExperience extends soundworks.Experience {
           //const effect1Val = 1 - Math.min(0.8, Math.max(0, pitch)) / 0.8;
           const effect1Val = 0.5 + Math.max(-0.8, Math.min(0.8, (accZ / 9.81))) / 1.6;
 
-          // update local audio
-          this.audioPlayer.setEffect1Value('local', effect1Val);
+          if(Math.abs(effect1Val - this.lastEffect1Value) > 0.1) {
+            this.lastEffect1Value = effect1Val;
 
-          // update server (hence neighbors)
-          this.send('soundEffect1Value', effect1Val);
+            // update local audio
+            this.audioPlayer.setEffect1Value('local', effect1Val);
+
+            // update server (hence neighbors)
+            this.send('soundEffect1Value', effect1Val);
+          }
       });
     }
   }

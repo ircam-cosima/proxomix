@@ -82,6 +82,7 @@ export default class AudioPlayer {
     this.scheduler = scheduler;
     this.buffers = buffers;
 
+<<<<<<< HEAD
     this.localTrack = new LoopTrack();
     this.localTrack.connect(audioContext.destination);
     this.remoteTracks = new Map();

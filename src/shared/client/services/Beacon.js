@@ -55,7 +55,7 @@ class Beacon extends Service {
       identifier: 'advertisedBeacon',
       major: Math.floor(Math.random() * 65500),
       minor: Math.floor(Math.random() * 65500)
-    }
+    };
 
       this._checkPlugin();
       this._startAdvertising();
@@ -103,7 +103,7 @@ class Beacon extends Service {
   rssiToDist(rssi) {
     if (!this._hasBeenCalibrated) {
       console.warn('rssiToDist called prior to txPower definition (calibration), using default value:', this._txPower, 'dB');
-      this._hasBeenCalibrated = true
+      this._hasBeenCalibrated = true;
     }
     let dist = this._calculateAccuracy(this.txPower, rssi);
     return dist;
@@ -219,7 +219,7 @@ class Beacon extends Service {
   * http://stackoverflow.com/questions/20416218/understanding-ibeacon-distancing
   */
   _calculateAccuracy(txPower, rssi) {
-    if (rssi == 0) {
+    if (rssi === 0) {
       return 0.0;
     }
     let ratio = rssi * 1.0 / txPower;

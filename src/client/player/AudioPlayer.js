@@ -1,9 +1,21 @@
 import * as soundworks from 'soundworks/client';
 
 const audioContext = soundworks.audioContext;
+const audio = soundworks.audio;
 
-class LoopTrack {
-  constructor() {
+const maxIdleTime = 6;
+
+class LoopTrack extends audio.TimeEngine {
+  constructor(sync, scheduler, local) {
+    super();
+
+    this.sync = sync;
+    this.scheduler = scheduler;
+    this.local = local;
+
+    this.buffer = null;
+    this.duration = 0;
+
     const gain = audioContext.createGain();
     gain.gain.value = 0;
 
@@ -16,10 +28,7 @@ class LoopTrack {
     this.logCutoffRatio = Math.log(this.maxCutoffFreq / this.minCutoffFreq);
     cutoff.frequency.value = this.minCutoffFreq;
 
-    const src = audioContext.createBufferSource();
-    src.connect(cutoff);
-
-    this.src = src;
+    this.src = null;
     this.gain = gain;
     this.cutoff = cutoff;
     this.lastUpdated = 0;
@@ -33,15 +42,58 @@ class LoopTrack {
     this.gain.disconnect(node);
   }
 
-  start(audioTime, syncTime, buffer) {
-    const duration = buffer.duration;
-    const offset = syncTime % duration;
+  setBuffer(buffer, quantization = 0) {
+    this.buffer = buffer;
 
-    this.src.buffer = buffer;
-    this.src.start(audioTime, offset);
-    this.src.loop = true;
+    if(quantization > 0)
+      this.duration = Math.floor(buffer.duration / quantization + 0.5) * quantization;
+    else
+      this.duration = buffer.duration;
+  }
 
-    this.lastUpdated = syncTime;
+  start(audioTime, offset = 0) {
+    const buffer = this.buffer;
+
+    if(buffer && offset < buffer.duration) {
+      const src = audioContext.createBufferSource();
+      src.connect(this.cutoff);
+      src.buffer = buffer;
+      src.start(audioTime, offset);
+      this.src = src;
+    }
+  }
+
+  stop(audioTime) {
+    this.setGain(0, 1); // fade out in 1 sec
+    this.src.stop(audioTime); // ... and stop
+  }
+
+  advanceTime(syncTime) {
+    const audioTime = this.sync.getAudioTime(syncTime);
+
+    if(!this.local && syncTime > this.lastUpdated + maxIdleTime) {
+      this.stop(audioTime + 1);
+      this.src = null; // remove source
+      return; // stop scheduling
+    }
+
+    this.start(audioTime);
+
+    return syncTime + this.duration;
+  }
+
+  launch() {
+    if(!this.src) {
+      const audioTime = this.scheduler.audioTime;
+      const syncTime = this.sync.getSyncTime(audioTime);
+      const offset = syncTime % this.duration;
+      const delay = this.duration - offset;
+
+      this.start(audioTime, offset);
+
+      this.scheduler.add(this, syncTime + delay, true); // schedule syncronized
+      this.lastUpdated = syncTime;
+    }
   }
 
   setEffect1Value(val) {
@@ -52,7 +104,7 @@ class LoopTrack {
   setGain(val, fadeTime = 0) {
     if(fadeTime > 0) {
       const param = this.gain.gain;
-      const audioTime = audioContext.currentTime;
+      const audioTime = this.scheduler.audioTime;
       const currentValue = param.value;
       param.cancelScheduledValues(audioTime);
       param.linearRampToValueAtTime(currentValue, audioTime);
@@ -77,88 +129,66 @@ class LoopTrack {
 }
 
 export default class AudioPlayer {
-  constructor(sync, scheduler, buffers) {
+  constructor(sync, scheduler, buffers, options = {}) {
     this.sync = sync;
     this.scheduler = scheduler;
     this.buffers = buffers;
+    this.tracks = {};
 
-    this.localTrack = new LoopTrack();
-    this.localTrack.connect(audioContext.destination);
-    this.remoteTracks = new Map();
+    this.quantization = options.quantization;
 
-    this.removeUnusedTracks = this.removeUnusedTracks.bind(this);
-
-    window.setInterval(() => {
-      this.removeUnusedTracks();
-    }, 3000);
+    const localTrack = new LoopTrack(sync, scheduler, true);
+    localTrack.connect(audioContext.destination);
+    this.tracks.local = localTrack;
   }
 
-  getTrack(id) {
-    let track = this.remoteTracks.get(id);
+  getRunningTrack(id) {
+    let track = this.tracks[id];
 
     // create track if needed
     if (!track) {
-      track = new LoopTrack();
+      track = new LoopTrack(this.sync, this.scheduler, false);
       track.connect(audioContext.destination);
+      track.setBuffer(this.buffers[id], this.quantization);
 
-      const audioTime = audioContext.currentTime;
-      const syncTime = this.sync.getSyncTime(audioTime);
-      const buffer = this.buffers[id];
-      track.start(audioTime, syncTime, buffer);
-
-      this.remoteTracks.set(id, track);
+      this.tracks[id] = track;
     }
+
+    track.launch();
 
     return track;
   }
 
   updateTrack(id, dist) {
-    const audioTime = audioContext.currentTime;
+    const audioTime = this.scheduler.audioTime;
     const syncTime = this.sync.getSyncTime(audioTime);
-    const track = this.getTrack(id);
+    const track = this.getRunningTrack(id);
 
     if(track)
       track.updateDistance(audioTime, syncTime, dist);
   }
 
-  removeUnusedTracks() {
-    const audioTime = audioContext.currentTime;
-    const syncTime = this.sync.getSyncTime(audioTime);
-
-    this.remoteTracks.forEach((track, id) => {
-      if ((syncTime - track.lastUpdated) > 6) {
-        track.setGain(0, 1); // fade out in 1 sec
-        this.remoteTracks.delete(id);
-      }
-    });
-  }
-
-  start(id) {
-    const buffer = this.buffers[id];
-    const audioTime = audioContext.currentTime;
-    const syncTime = this.sync.getSyncTime(audioTime);
-    this.localTrack.start(audioTime, syncTime, buffer);
-    this.localTrack.setGain(1);
-
+  startLocalTrack(id) {
+    const localTrack = this.tracks.local;
+    localTrack.setBuffer(this.buffers[id], this.quantization);
+    localTrack.launch();
+    localTrack.setGain(1);
   }
 
   setEffect1Value(id, val) {
-    let track;
-
-    if (id === 'local')
-      track = this.localTrack;
-    else
-      track = this.remoteTracks.get(id);
+    const track = this.tracks[id];
 
     if(track)
       track.setEffect1Value(val);
   }
 
   connect(node) {
-    this.localTrack.connect(node);
+    const localTrack = this.tracks.local;
+    localTrack.connect(node);
   }
 
   disconnect(node) {
-    this.localTrack.disconnect(node);
+    const localTrack = this.tracks.local;
+    localTrack.disconnect(node);
   }
 }

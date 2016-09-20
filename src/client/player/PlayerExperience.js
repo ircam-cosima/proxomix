@@ -74,7 +74,9 @@ export default class PlayerExperience extends soundworks.Experience {
 
     // local attributes
     this.audioAnalyser = new AudioAnalyser();
-    this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers);
+    this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers, {
+        quantization: 2.4,
+      });
     this.audioPlayer.connect(this.audioAnalyser.input);
 
     this.lastEffect1Value = -Infinity;
@@ -120,7 +122,7 @@ export default class PlayerExperience extends soundworks.Experience {
       this.renderer.setBkgColor(minor);
 
       // start local sound
-      this.audioPlayer.start(minor);
+      this.audioPlayer.startLocalTrack(minor);
 
       // give renderer a handle to audioAnalyser
       this.renderer.audioAnalyser = this.audioAnalyser;

@@ -71,7 +71,7 @@ export default class AudioAnalyser {
     this.input = audioContext.createGain();
 
     this.analyser = audioContext.createAnalyser();
-    this.analyser.smoothingTimeConstant = 0.9;
+    this.analyser.smoothingTimeConstant = 0.5;
     this.analyser.fftSize = 128/2;
 
     const binCount = this.analyser.frequencyBinCount;

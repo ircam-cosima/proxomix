@@ -25,7 +25,17 @@
     </platform>
     <preference name="com.unarin.cordova.beacon.android.altbeacon.ForegroundBetweenScanPeriod" value="1000" />
     <preference name="com.unarin.cordova.beacon.android.altbeacon.ForegroundScanPeriod" value="1000" />
+
+    <splash src="assets/cosima-spashscreen-black.jpg"/>
     <platform name="ios">
         <icon src="assets/Icon-60@2x.png" width="120" height="120" />
+     
+        <!-- <splash src="assets/cosima-spashscreen-black.jpg" width="640" height="1136" />
+        <splash src="assets/cosima-spashscreen-black.jpg" width="640" height="960" /> -->
     </platform>
+    <!-- <preference name="AutoHideSplashScreen" value="true" />
+    <preference name="ShowSplashScreenSpinner" val -->ue="false"/>
+
+    <preference name="SplashScreen" value="none"/>
+
 </widget>

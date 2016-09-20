@@ -72,7 +72,7 @@ export default class PlayerRenderer extends Renderer {
 
       // Draw frequency spectrum
       for (let i = 0; i < binCount; i++) {
-        let percent = specAmps[i] / 256;
+        let percent = specAmps[i] / (3*binCount);
         let height = this.canvasHeight * percent;
         let offset = this.canvasHeight - height - 1;
         let barWidth = this.canvasWidth / binCount;

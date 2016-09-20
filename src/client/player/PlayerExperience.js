@@ -137,8 +137,8 @@ export default class PlayerExperience extends soundworks.Experience {
     this.view.addRenderer(this.renderer);
 
     if (this.beacon) {
-      const major = Math.floor(client.index / 4) + 1;
-      const minor = (client.index % 4) + 1;
+      const major = 0; // Math.floor(client.index / 4) + 1;
+      const minor = client.index; // (client.index % 4) + 1;
 
       // change local beacon info
       this.beacon.major = major;
@@ -147,15 +147,15 @@ export default class PlayerExperience extends soundworks.Experience {
 
       // add local beacon info on screen
       // document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + major + '.' + minor;
-      this.view.content.major = major;
-      this.view.content.minor = minor;
+      this.view.content.major = Math.floor(client.index / 4) + 1;
+      this.view.content.minor = (client.index % 4) + 1;
       this.view.render('.section-center');
 
       // change background color based on beacon minor id
       this.renderer.setBkgColor(minor);
 
       // start local sound
-      this.audioPlayer.startLocalTrack(minor);
+      this.audioPlayer.startLocalTrack(client.index);
 
       // give renderer a handle to audioAnalyser
       this.renderer.audioAnalyser = this.audioAnalyser;

@@ -7,6 +7,13 @@ import viewContent from '../shared/viewContent';
 const voices = ["drums", "bass", "harmony", "melody"];
 const arrangements = [
   { bpm: 100, name: "hb" },
+  { bpm: 100, name: "ambient" },
+  { bpm: 100, name: "celt" },
+  { bpm: 100, name: "gadda" },
+  { bpm: 100, name: "hb" },
+  { bpm: 100, name: "metro" },
+  { bpm: 100, name: "pseudopunk" },
+  { bpm: 100, name: "technolounge" },
 ];
 
 // [BPM]   [1/4 beat] [1/16 beat] [measure] [4 measures] [x 2.4]
@@ -15,13 +22,6 @@ const arrangements = [
 // 133.33     0.45       0.11       1.80        7.20        3
 
 const moreArrangements = [
-  { bpm: 100, name: "ambient" },
-  { bpm: 100, name: "celt" },
-  { bpm: 100, name: "gadda" },
-  { bpm: 100, name: "hb" },
-  { bpm: 100, name: "metro" },
-  { bpm: 100, name: "pseudopunk" },
-  { bpm: 100, name: "technolounge" },
   { bpm: 133, name: "333" },
   { bpm: 133, name: "70s" },
   { bpm: 133, name: "ambient" },

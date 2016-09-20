@@ -16,18 +16,19 @@ const client = soundworks.client;
 const viewTemplate = `
   <canvas class="background"></canvas>
   <div class="foreground">
-    <div class="section-center flex-middle">
-    <p class="small" id="logValues"></p>
-    </div>
-
     <div class="section-top flex-middle">
-    <p class="small" id="localInfo"></p>
+      <p class="medium">ProXoMix</p>
     </div>
 
-    <div class="section-bottom flex-center">
-      <p class="small soft-blink"><%= title %></p>
+    <div class="section-center flex-middle">
+      <p class="huge" id="logValues">
+        <%= major %>.<%= minor %>
+      </p>
     </div>
-    <hr>
+
+    <div class="section-bottom flex-middle">
+      <p class="small soft-blink"><%= instructions %></p>
+    </div>
   </div>
 `;
 
@@ -67,9 +68,20 @@ export default class PlayerExperience extends soundworks.Experience {
   init() {
     // initialize the view
     this.viewTemplate = viewTemplate;
-    this.viewContent = { title: `- instrument detection activated -` };
+    this.viewContent = { 
+      instructions: `ON AIR`,
+      major: '',
+      minor: '', 
+    };
     this.viewCtor = soundworks.CanvasView;
-    this.viewOptions = { preservePixelRatio: true };
+    this.viewOptions = { 
+      preservePixelRatio: true, 
+      ratios: {
+        '.section-top': 0.2,
+        '.section-center': 0.6,
+        '.section-bottom': 0.2,
+      }
+    };
     this.view = this.createView();
 
     // local attributes
@@ -102,13 +114,31 @@ export default class PlayerExperience extends soundworks.Experience {
     // Setup listeners for player connections / disconnections
     this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
+    // // DEBUG
+    // this.beacon = {major:0, minor: 0};
+    // this.beacon.restartAdvertising = function(){};
+    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
+    // window.setInterval(() => {
+    //   var pluginResult = { beacons : [] };
+    //   for (let i = 0; i < 4; i++) {
+    //     var beacon = {
+    //       major: 0,
+    //       minor: i,
+    //       rssi: -45 - i * 5,
+    //       proximity : 'hi',
+    //     };
+    //     pluginResult.beacons.push(beacon);
+    //   }
+    //   this.beaconCallback(pluginResult);
+    // }, 1000);
+
     // initialize rendering (change background color based on beacon id)
     this.renderer = new PlayerRenderer();
     this.view.addRenderer(this.renderer);
 
     if (this.beacon) {
-      const major = 0;
-      const minor = client.index;
+      const major = Math.floor(client.index / 4) + 1;
+      const minor = (client.index % 4) + 1;
 
       // change local beacon info
       this.beacon.major = major;
@@ -116,7 +146,10 @@ export default class PlayerExperience extends soundworks.Experience {
       this.beacon.restartAdvertising();
 
       // add local beacon info on screen
-      document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + major + '.' + minor;
+      // document.getElementById('localInfo').innerHTML = 'local iBeacon ID: ' + major + '.' + minor;
+      this.view.content.major = major;
+      this.view.content.minor = minor;
+      this.view.render('.section-center');
 
       // change background color based on beacon minor id
       this.renderer.setBkgColor(minor);
@@ -170,17 +203,8 @@ export default class PlayerExperience extends soundworks.Experience {
     let log = '';
 
     pluginResult.beacons.forEach((beacon) => {
-      log += 'iBeacon maj.min: ' + beacon.major + '.' + beacon.minor + '</br>' +
-      'rssi: ' + beacon.rssi + 'dB ~ dist: ' +
-      Math.round(this.beacon.rssiToDist(beacon.rssi) * 100, 2 ) / 100 + 'm' + '</br>' +
-      '(' + beacon.proximity + ')' + '</br></br>';
-
-      if (beacon.minor < this.loader.buffers.length) {
+      if (beacon.minor < this.loader.buffers.length)
         this.audioPlayer.updateTrack(beacon.minor, this.beacon.rssiToDist(beacon.rssi));
-      }
     });
-
-    // diplay beacon list on screen
-    document.getElementById('logValues').innerHTML = log;
   }
 }

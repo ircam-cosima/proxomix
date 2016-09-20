@@ -11,24 +11,21 @@ export default class PlayerRenderer extends Renderer {
     this.bkgChangeColor = false;
     this.audioAnalyser = null;
 
-    // // get list of background colors, based on color-scheme lib,
-    // // see http://c0bra.github.io/color-scheme-js/
-    // var ColorScheme = require('color-scheme');
-    // var scheme = new ColorScheme;
-    // scheme.from_hue(0.08 * 360)
-    //   .scheme('tetrade')
-    //   .variation('pastel')
-    //   .web_safe(true);
-    // this.bkgColorList = scheme.colors();
-
+    // define background color list
     this.bkgColorList = [
-      [11, 83, 36],
-      [30, 100, 42],
-      [51, 11, 25],
-      [199, 16, 34],
-      [210, 17, 21],
-      [0, 0, 93]
+       [224, 16, 107],
+       [90, 34, 220],
+       [134, 200, 43],
+       [255, 111, 0]
     ];
+
+    // define visual feedback color list
+    this.analyserColorList = [
+       [130, 120, 200],
+       [150, 140, 220],
+       [80, 80, 80],
+       [80, 80, 80]
+    ];    
   }
 
   /**
@@ -49,20 +46,41 @@ export default class PlayerRenderer extends Renderer {
    * @param {CanvasRenderingContext2D} ctx - canvas 2D rendering context
    */
   render(ctx) {
-    if(this.audioAnalyser) {
-      const power = this.audioAnalyser.getPower();
-      this.setBkgLightness(power);
-    }
 
+    // set background color
     if (this.bkgChangeColor) {
       ctx.save();
       ctx.globalAlpha = 1;
-      // ctx.fillStyle = '#' + this.bkgColor;
-      ctx.fillStyle = "hsl(" + this.bkgColor[0] + ", " + this.bkgColor[1] + "%, " + this.bkgColor[2] + "%)";
+      ctx.fillStyle = "rgb(" + this.bkgColor[0] + ", " + this.bkgColor[1] + ", " + this.bkgColor[2] + ")";
       ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
       ctx.fill();
       ctx.restore();
       this.bkgChangeColor = false;
+    }
+
+    // // use screen brightness for visual feedback on sound level
+    // if( this.audioAnalyser ) {
+    //   const power = this.audioAnalyser.getPower();
+    //   this.setBkgLightness(power);
+    // }
+
+    // add visual feedback on sound level (freq analyser)
+    if( this.audioAnalyser && this.analyserColor !== undefined ) {
+
+      let specAmps = this.audioAnalyser.getFreqAmplArray();
+      let binCount = this.audioAnalyser.analyser.frequencyBinCount;
+
+      // Draw frequency spectrum
+      for (let i = 0; i < binCount; i++) {
+        let percent = specAmps[i] / 256;
+        let height = this.canvasHeight * percent;
+        let offset = this.canvasHeight - height - 1;
+        let barWidth = this.canvasWidth / binCount;
+        ctx.fillStyle = "rgb(" + this.analyserColor[0] + ", " + this.analyserColor[1] + ", " + this.analyserColor[2] + ")";
+        ctx.fillRect(i * barWidth, offset, barWidth, height);
+      }      
+
+      this.bkgChangeColor = true;
     }
   }
 
@@ -72,10 +90,14 @@ export default class PlayerRenderer extends Renderer {
    * or @param {Array}  colorId - HSL color array
    */
   setBkgColor(colorId) {
-    if (colorId.length === 3)
+    if (colorId.length === 3) {
       this.bkgColor = colorId; // direct color HSL
-    else
+      this.analyserColor = this.analyserColorList[0];
+    }
+    else {
       this.bkgColor = this.bkgColorList[colorId % this.bkgColorList.length]; // or give color ID to checkout in local color list
+      this.analyserColor = this.analyserColorList[colorId % this.analyserColorList.length];
+    }
 
     this.bkgChangeColor = true;
   }

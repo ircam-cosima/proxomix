@@ -71,8 +71,8 @@ export default class AudioAnalyser {
     this.input = audioContext.createGain();
 
     this.analyser = audioContext.createAnalyser();
-    this.analyser.smoothingTimeConstant = 0.02;
-    this.analyser.fftSize = 256;
+    this.analyser.smoothingTimeConstant = 0.9;
+    this.analyser.fftSize = 128/2;
 
     const binCount = this.analyser.frequencyBinCount;
     const binFreqStep = audioContext.sampleRate;
@@ -106,5 +106,11 @@ export default class AudioAnalyser {
 
     // let norm = this.analyser.frequencyBinCount * 32; // arbitrary value, to be cleaned
     return power / this.maxPower;
+  }
+
+  getFreqAmplArray() {
+    // update frequency ampl. values from analyser
+    this.analyser.getByteFrequencyData(this.specAmps);
+    return this.specAmps;
   }
 }

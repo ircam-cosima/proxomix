@@ -52,7 +52,7 @@ export default class PlayerExperience extends soundworks.Experience {
     this.checkin = this.require('checkin');
     this.sync = this.require('sync');
     this.scheduler = this.require('scheduler');
-    this.motionInput = this.require('motion-input', { descriptors: ['deviceorientation']});
+    this.motionInput = this.require('motion-input', { descriptors: ['accelerationIncludingGravity']});
 
     if (window.cordova) {
       // beacon only work in cordova mode since it needs access right to BLE
@@ -116,23 +116,23 @@ export default class PlayerExperience extends soundworks.Experience {
     // Setup listeners for player connections / disconnections
     this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
-    // DEBUG
-    this.beacon = {major:0, minor: 0};
-    this.beacon.restartAdvertising = function(){};
-    this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
-    window.setInterval(() => {
-      var pluginResult = { beacons : [] };
-      for (let i = 0; i < 4; i++) {
-        var beacon = {
-          major: 0,
-          minor: i,
-          rssi: -45 - i * 5,
-          proximity : 'hi',
-        };
-        pluginResult.beacons.push(beacon);
-      }
-      this.beaconCallback(pluginResult);
-    }, 1000);
+    // // DEBUG
+    // this.beacon = {major:0, minor: 0};
+    // this.beacon.restartAdvertising = function(){};
+    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
+    // window.setInterval(() => {
+    //   var pluginResult = { beacons : [] };
+    //   for (let i = 0; i < 4; i++) {
+    //     var beacon = {
+    //       major: 0,
+    //       minor: i,
+    //       rssi: -45 - i * 5,
+    //       proximity : 'hi',
+    //     };
+    //     pluginResult.beacons.push(beacon);
+    //   }
+    //   this.beaconCallback(pluginResult);
+    // }, 1000);
 
     if (this.beacon) {
       const major = 0;
@@ -148,8 +148,8 @@ export default class PlayerExperience extends soundworks.Experience {
     }
 
     // setup motion input listeners
-    if (this.motionInput.isAvailable('deviceorientation')) {
-      this.motionInput.addListener('deviceorientation', (data) => {
+    if (this.motionInput.isAvailable('accelerationIncludingGravity')) {
+      this.motionInput.addListener('accelerationIncludingGravity', (data) => {
         // get acceleration data
         const accX = data[0];
         const accY = data[1];
@@ -176,7 +176,7 @@ export default class PlayerExperience extends soundworks.Experience {
   }
 
   onSoundEffect1Bundle(deviceId, value) {
-    this.audioPlayer.setEffect1Value(deviceId, value);
+    this.audioPlayer.setEffect1Value(deviceId, msg.value);
   }
 
   beaconCallback(pluginResult) {

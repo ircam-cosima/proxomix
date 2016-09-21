@@ -176,7 +176,7 @@ export default class PlayerExperience extends soundworks.Experience {
   }
 
   onSoundEffect1Bundle(deviceId, value) {
-    this.audioPlayer.setEffect1Value(deviceId, msg.value);
+    this.audioPlayer.setEffect1Value(deviceId, value);
   }
 
   beaconCallback(pluginResult) {

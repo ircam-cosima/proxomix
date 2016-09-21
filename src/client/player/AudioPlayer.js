@@ -16,6 +16,10 @@ class LoopTrack extends audio.TimeEngine {
     this.buffer = null;
     this.duration = 0;
 
+    this.minCutoffFreq = 5;
+    this.maxCutoffFreq = audioContext.sampleRate / 2;
+    this.logCutoffRatio = Math.log(this.maxCutoffFreq / this.minCutoffFreq);
+
     const gain = audioContext.createGain();
     gain.gain.value = 0;
 
@@ -23,14 +27,11 @@ class LoopTrack extends audio.TimeEngine {
     const cutoff = audioContext.createBiquadFilter();
     cutoff.connect(gain);
     cutoff.type = 'lowpass';
-    this.minCutoffFreq = 5;
-    this.maxCutoffFreq = audioContext.sampleRate / 2;
-    this.logCutoffRatio = Math.log(this.maxCutoffFreq / this.minCutoffFreq);
     cutoff.frequency.value = this.minCutoffFreq;
 
     this.src = null;
-    this.gain = gain;
     this.cutoff = cutoff;
+    this.gain = gain;
     this.lastUpdated = 0;
   }
 
@@ -59,21 +60,23 @@ class LoopTrack extends audio.TimeEngine {
       src.connect(this.cutoff);
       src.buffer = buffer;
       src.start(audioTime, offset);
+
       this.src = src;
-    }
+   }
   }
 
   stop(audioTime) {
-    this.setGain(0, 1); // fade out in 1 sec
-    this.src.stop(audioTime); // ... and stop
+    if(this.src) {
+      this.src.stop(audioTime); // ... and stop
+      this.src = null;
+    }
   }
 
   advanceTime(syncTime) {
     const audioTime = this.sync.getAudioTime(syncTime);
 
     if(!this.local && syncTime > this.lastUpdated + maxIdleTime) {
-      this.stop(audioTime + 1);
-      this.src = null; // remove source
+      this.stop(audioTime);
       return; // stop scheduling
     }
 
@@ -107,7 +110,7 @@ class LoopTrack extends audio.TimeEngine {
       const audioTime = this.scheduler.audioTime;
       const currentValue = param.value;
       param.cancelScheduledValues(audioTime);
-      param.linearRampToValueAtTime(currentValue, audioTime);
+      param.setValueAtTime(currentValue, audioTime);
       param.linearRampToValueAtTime(val, audioTime + fadeTime);
     } else {
       this.gain.gain.value = val;
@@ -115,16 +118,19 @@ class LoopTrack extends audio.TimeEngine {
   }
 
   updateDistance(audioTime, syncTime, dist) {
-    const spread = 1; // -3dB at spread meters away
-    let gain = 0;
+    if (dist < 3.0) {
+      const spread = 1; // -3dB at spread meters away
+      let gain = 0;
 
-    if (dist !== 0) {
-      gain = Math.exp(-Math.pow(dist, 2) / (Math.pow(spread, 2) / 0.7));
-      gain = Math.min(1, gain);
+      if (dist !== 0) {
+        gain = Math.exp(-Math.pow(dist, 2) / (Math.pow(spread, 2) / 0.7));
+        gain = Math.min(1, gain);
+      }
+
+      this.setGain(gain, 0.5);
+
+      this.lastUpdated = syncTime;
     }
-
-    this.setGain(gain, 0.5);
-    this.lastUpdated = syncTime;
   }
 }
 

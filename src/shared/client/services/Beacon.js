@@ -38,6 +38,10 @@ class Beacon extends Service {
     this.restartAdvertising = this.restartAdvertising.bind(this);
     this.restartRanging = this.restartRanging.bind(this);
 
+    // remove debug logs 
+    // cordova.plugins.locationManager.disableDebugNotifications();
+    // cordova.plugins.locationManager.disableDebugLogs();
+
   }
 
   /** @private */

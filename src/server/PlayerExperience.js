@@ -20,8 +20,7 @@ export default class PlayerExperience extends Experience {
 
     // add callback used to spread current client orientation for sound effect
     this.receive(client, 'soundEffect1Value', ( val ) => {
-      var msg = { deviceId: client.index, value: val };
-      this.broadcast('player', client, 'soundEffect1Bundle', msg);
+      this.broadcast('player', client, 'soundEffect1Bundle', client.index, val);
     });
   }
 

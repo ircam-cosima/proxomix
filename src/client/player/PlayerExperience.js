@@ -49,7 +49,7 @@ export default class PlayerExperience extends soundworks.Experience {
     // configure required services
     this.loader = this.require('loader', { files: audioFiles });
     this.platform = this.require('platform', { features: ['web-audio'] });
-    this.checkin = this.require('checkin');
+    this.checkin = this.require('checkin', { order: 'random' });
     this.sync = this.require('sync');
     this.scheduler = this.require('scheduler');
     this.motionInput = this.require('motion-input', { descriptors: ['accelerationIncludingGravity']});
@@ -67,16 +67,16 @@ export default class PlayerExperience extends soundworks.Experience {
   init() {
     // initialize the view
     this.viewTemplate = viewTemplate;
-    this.viewContent = { 
+    this.viewContent = {
       classname: `minor-${(client.index % 4)}`,
       instructions: `ON THE AIR`,
       major: Math.floor(client.index / 4) + 1,
-      minor: (client.index % 4) + 1, 
+      minor: (client.index % 4) + 1,
     };
 
     this.viewCtor = soundworks.CanvasView;
-    this.viewOptions = { 
-      preservePixelRatio: true, 
+    this.viewOptions = {
+      preservePixelRatio: true,
       ratios: {
         '.section-top': 0.2,
         '.section-center': 0.6,
@@ -88,7 +88,7 @@ export default class PlayerExperience extends soundworks.Experience {
     // local attributes
     this.audioAnalyser = new AudioAnalyser();
     this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers, {
-      quantization: 2.4,
+      quantization: 1.8,
     });
 
     this.audioPlayer.connect(this.audioAnalyser.input);
@@ -119,7 +119,7 @@ export default class PlayerExperience extends soundworks.Experience {
     // // DEBUG
     // this.beacon = {major:0, minor: 0};
     // this.beacon.restartAdvertising = function(){};
-    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
+    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};
     // window.setInterval(() => {
     //   var pluginResult = { beacons : [] };
     //   for (let i = 0; i < 4; i++) {

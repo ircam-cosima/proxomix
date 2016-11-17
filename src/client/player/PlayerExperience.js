@@ -86,12 +86,12 @@ export default class PlayerExperience extends soundworks.Experience {
     this.view = this.createView();
 
     // local attributes
-    this.audioAnalyser = new AudioAnalyser();
+    // this.audioAnalyser = new AudioAnalyser();
     this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers, {
       quantization: 1.8,
     });
 
-    this.audioPlayer.connect(this.audioAnalyser.input);
+    // this.audioPlayer.connect(this.audioAnalyser.input);
 
     this.lastEffect1Value = -Infinity;
 
@@ -116,36 +116,38 @@ export default class PlayerExperience extends soundworks.Experience {
     // Setup listeners for player connections / disconnections
     this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
-    // // DEBUG
-    // this.beacon = {major:0, minor: 0};
-    // this.beacon.restartAdvertising = function(){};
-    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};
-    // window.setInterval(() => {
-    //   var pluginResult = { beacons : [] };
-    //   for (let i = 0; i < 4; i++) {
-    //     var beacon = {
-    //       major: 0,
-    //       minor: i,
-    //       rssi: -45 - i * 5,
-    //       proximity : 'hi',
-    //     };
-    //     pluginResult.beacons.push(beacon);
-    //   }
-    //   this.beaconCallback(pluginResult);
-    // }, 1000);
+    if (!window.cordova) {
+      this.beacon = { major:0, minor: 0 };
+      this.beacon.restartAdvertising = function(){};
+      this.beacon.rssiToDist = () => 0 + Math.random() * 3;
 
-    if (this.beacon) {
-      const major = 0;
-      const minor = client.index;
-
-      // change local beacon info
-      this.beacon.major = major;
-      this.beacon.minor = minor;
-      this.beacon.restartAdvertising();
-
-      // start local sound
-      this.audioPlayer.startLocalTrack(client.index);
+      window.setInterval(() => {
+        const pluginResult = { beacons : [] };
+        for (let i = 0; i < 2; i++) {
+          if (i !== client.index) {
+            const beacon = {
+              major: 0,
+              minor: i,
+              rssi: -30 - i * 5, // this is not used (cf. `rssiToDist`)
+              proximity : 'hi',
+            };
+            pluginResult.beacons.push(beacon);
+          }
+        }
+        this.beaconCallback(pluginResult);
+      }, 1000);
     }
+
+    const major = 0;
+    const minor = client.index;
+
+    // change local beacon info
+    this.beacon.major = major;
+    this.beacon.minor = minor;
+    this.beacon.restartAdvertising();
+
+    // start local sound
+    this.audioPlayer.startLocalTrack(client.index);
 
     // setup motion input listeners
     if (this.motionInput.isAvailable('accelerationIncludingGravity')) {
@@ -162,7 +164,7 @@ export default class PlayerExperience extends soundworks.Experience {
         //const effect1Val = 1 - Math.min(0.8, Math.max(0, pitch)) / 0.8;
         const effect1Val = 0.5 + Math.max(-0.8, Math.min(0.8, (accZ / 9.81))) / 1.6;
 
-        if(Math.abs(effect1Val - this.lastEffect1Value) > 0.1) {
+        if (Math.abs(effect1Val - this.lastEffect1Value) > 0.1) {
           this.lastEffect1Value = effect1Val;
 
           // update local audio

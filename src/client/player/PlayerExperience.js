@@ -67,16 +67,16 @@ export default class PlayerExperience extends soundworks.Experience {
   init() {
     // initialize the view
     this.viewTemplate = viewTemplate;
-    this.viewContent = { 
+    this.viewContent = {
       classname: `minor-${(client.index % 4)}`,
       instructions: `ON THE AIR`,
       major: Math.floor(client.index / 4) + 1,
-      minor: (client.index % 4) + 1, 
+      minor: (client.index % 4) + 1,
     };
 
     this.viewCtor = soundworks.CanvasView;
-    this.viewOptions = { 
-      preservePixelRatio: true, 
+    this.viewOptions = {
+      preservePixelRatio: true,
       ratios: {
         '.section-top': 0.2,
         '.section-center': 0.6,
@@ -86,12 +86,12 @@ export default class PlayerExperience extends soundworks.Experience {
     this.view = this.createView();
 
     // local attributes
-    this.audioAnalyser = new AudioAnalyser();
+    // this.audioAnalyser = new AudioAnalyser();
     this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers, {
       quantization: 2.4,
     });
 
-    this.audioPlayer.connect(this.audioAnalyser.input);
+    // this.audioPlayer.connect(this.audioAnalyser.input);
 
     this.lastEffect1Value = -Infinity;
 
@@ -116,23 +116,27 @@ export default class PlayerExperience extends soundworks.Experience {
     // Setup listeners for player connections / disconnections
     this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
-    // // DEBUG
-    // this.beacon = {major:0, minor: 0};
+    // DEBUG
+    // this.beacon = { major:0, minor: 0 };
     // this.beacon.restartAdvertising = function(){};
-    // this.beacon.rssiToDist = function(){return 3 + 1*Math.random()};    
+    // this.beacon.rssiToDist = () => 0 + Math.random() * 3;
+
     // window.setInterval(() => {
-    //   var pluginResult = { beacons : [] };
-    //   for (let i = 0; i < 4; i++) {
-    //     var beacon = {
-    //       major: 0,
-    //       minor: i,
-    //       rssi: -45 - i * 5,
-    //       proximity : 'hi',
-    //     };
-    //     pluginResult.beacons.push(beacon);
+    //   const pluginResult = { beacons : [] };
+    //   for (let i = 0; i < 2; i++) {
+    //     if (i !== client.index) {
+    //       const beacon = {
+    //         major: 0,
+    //         minor: i,
+    //         rssi: -30 - i * 5, // this is not used (cf. `rssiToDist`)
+    //         proximity : 'hi',
+    //       };
+    //       pluginResult.beacons.push(beacon);
+    //     }
     //   }
     //   this.beaconCallback(pluginResult);
     // }, 1000);
+    // END DEBUG (maybe define a global variable for that)
 
     if (this.beacon) {
       const major = 0;
@@ -162,7 +166,7 @@ export default class PlayerExperience extends soundworks.Experience {
         //const effect1Val = 1 - Math.min(0.8, Math.max(0, pitch)) / 0.8;
         const effect1Val = 0.5 + Math.max(-0.8, Math.min(0.8, (accZ / 9.81))) / 1.6;
 
-        if(Math.abs(effect1Val - this.lastEffect1Value) > 0.1) {
+        if (Math.abs(effect1Val - this.lastEffect1Value) > 0.1) {
           this.lastEffect1Value = effect1Val;
 
           // update local audio

@@ -46,7 +46,7 @@ class LoopTrack extends audio.TimeEngine {
   setBuffer(buffer, quantization = 0) {
     this.buffer = buffer;
 
-    if(quantization > 0)
+    if (quantization > 0)
       this.duration = Math.floor(buffer.duration / quantization + 0.5) * quantization;
     else
       this.duration = buffer.duration;
@@ -55,7 +55,7 @@ class LoopTrack extends audio.TimeEngine {
   start(audioTime, offset = 0) {
     const buffer = this.buffer;
 
-    if(buffer && offset < buffer.duration) {
+    if (buffer && offset < buffer.duration) {
       const src = audioContext.createBufferSource();
       src.connect(this.cutoff);
       src.buffer = buffer;
@@ -66,8 +66,8 @@ class LoopTrack extends audio.TimeEngine {
   }
 
   stop(audioTime) {
-    if(this.src) {
-      this.src.stop(audioTime); // ... and stop
+    if (this.src) {
+      this.src.stop(audioTime);
       this.src = null;
     }
   }
@@ -75,7 +75,7 @@ class LoopTrack extends audio.TimeEngine {
   advanceTime(syncTime) {
     const audioTime = this.sync.getAudioTime(syncTime);
 
-    if(!this.local && syncTime > this.lastUpdated + maxIdleTime) {
+    if (!this.local && syncTime > this.lastUpdated + maxIdleTime) {
       this.stop(audioTime);
       return; // stop scheduling
     }
@@ -86,7 +86,7 @@ class LoopTrack extends audio.TimeEngine {
   }
 
   launch() {
-    if(!this.src) {
+    if (!this.src) {
       const audioTime = this.scheduler.audioTime;
       const syncTime = this.sync.getSyncTime(audioTime);
       const offset = syncTime % this.duration;
@@ -104,17 +104,8 @@ class LoopTrack extends audio.TimeEngine {
     this.cutoff.frequency.value = cutoffFreq;
   }
 
-  setGain(val, fadeTime = 0) {
-    if(fadeTime > 0) {
-      const param = this.gain.gain;
-      const audioTime = this.scheduler.audioTime;
-      const currentValue = param.value;
-      param.cancelScheduledValues(audioTime);
-      param.setValueAtTime(currentValue, audioTime);
-      param.linearRampToValueAtTime(val, audioTime + fadeTime);
-    } else {
-      this.gain.gain.value = val;
-    }
+  setGain(val/*, fadeTime = 0*/) {
+    this.gain.gain.value = val;
   }
 
   updateDistance(audioTime, syncTime, dist) {
@@ -127,7 +118,10 @@ class LoopTrack extends audio.TimeEngine {
         gain = Math.min(1, gain);
       }
 
-      this.setGain(gain, 0.5);
+      // emulate k-rate to control fade
+      this.startAutomationGain = this.gain.gain.value;
+      this.targetAutomationGain = gain;
+      this.startAutomationTime = audioTime;
 
       this.lastUpdated = syncTime;
     }
@@ -146,6 +140,33 @@ export default class AudioPlayer {
     const localTrack = new LoopTrack(sync, scheduler, true);
     localTrack.connect(audioContext.destination);
     this.tracks.local = localTrack;
+
+    // monitor all tracks to emulate k-rate gain automation for distance fades
+    this.monitorAutomations = this.monitorAutomations.bind(this);
+    this.monitorAutomations();
+  }
+
+  /**
+   * Emulate k-rate gain automation for distance fades
+   */
+  monitorAutomations() {
+    const now = audioContext.currentTime;
+    const fadeTime = 0.5;
+
+    for (let id in this.tracks) {
+      if (id === 'local') continue;
+
+      const track = this.tracks[id];
+
+      if (now < track.startAutomationTime + fadeTime) {
+        const delta = Math.max(0, now - track.startAutomationTime);
+        const gain = track.startAutomationGain + (track.targetAutomationGain - track.startAutomationGain) * (delta / fadeTime);
+        const clippedGain = Math.min(1, Math.max(0, gain)); // clip
+        track.setGain(clippedGain);
+      }
+    }
+
+    window.requestAnimationFrame(this.monitorAutomations);
   }
 
   getRunningTrack(id) {
@@ -170,7 +191,7 @@ export default class AudioPlayer {
     const syncTime = this.sync.getSyncTime(audioTime);
     const track = this.getRunningTrack(id);
 
-    if(track)
+    if (track)
       track.updateDistance(audioTime, syncTime, dist);
   }
 
@@ -184,7 +205,7 @@ export default class AudioPlayer {
   setEffect1Value(id, val) {
     const track = this.tracks[id];
 
-    if(track)
+    if (track)
       track.setEffect1Value(val);
   }
 

@@ -38,7 +38,7 @@ class Beacon extends Service {
     this.restartAdvertising = this.restartAdvertising.bind(this);
     this.restartRanging = this.restartRanging.bind(this);
 
-    // remove debug logs 
+    // remove debug logs
     // cordova.plugins.locationManager.disableDebugNotifications();
     // cordova.plugins.locationManager.disableDebugLogs();
 
@@ -145,7 +145,7 @@ class Beacon extends Service {
 
   /** @private */
   _stopAdvertising() {
-    if (this._cordovaPluginInstalled){
+    if (this._cordovaPluginInstalled) {
       cordova.plugins.locationManager.stopAdvertising()
         .fail(function(e) { console.error(e); })
         .done();
@@ -155,7 +155,7 @@ class Beacon extends Service {
   /** @private */
   _startRanging() {
 
-    if (this._cordovaPluginInstalled){
+    if (this._cordovaPluginInstalled) {
 
       var delegate = new cordova.plugins.locationManager.Delegate();
       delegate.didRangeBeaconsInRegion = this._didRangeBeaconsInRegion;

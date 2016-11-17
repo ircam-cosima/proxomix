@@ -52,8 +52,8 @@ const init = () => {
 
   const audioFiles = [];
 
-  for(let arr of arrangements) {
-    for(let voice of voices) {
+  for (let arr of arrangements) {
+    for (let voice of voices) {
       const fileName = `sounds/${arr.bpm}_${arr.name}_${voice}.mp3`;
       audioFiles.push(fileName);
     }

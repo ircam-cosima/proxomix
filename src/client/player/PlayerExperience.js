@@ -43,7 +43,7 @@ export default class PlayerExperience extends soundworks.Experience {
     // configure required services
     this.loader = this.require('loader', { files: audioFiles });
     this.platform = this.require('platform', { features: ['web-audio'] });
-    this.checkin = this.require('checkin');
+    this.checkin = this.require('checkin', { order: 'random' });
     this.sync = this.require('sync');
     this.scheduler = this.require('scheduler');
     this.motionInput = this.require('motion-input', { descriptors: ['accelerationIncludingGravity']});
@@ -81,7 +81,7 @@ export default class PlayerExperience extends soundworks.Experience {
 
     // local attributes
     this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers, {
-      quantization: 2.4,
+      quantization: 1.8,
     });
 
     this.lastEffect1Value = -Infinity;
@@ -107,40 +107,38 @@ export default class PlayerExperience extends soundworks.Experience {
     // Setup listeners for player connections / disconnections
     this.receive('soundEffect1Bundle', this.onSoundEffect1Bundle);
 
-    // DEBUG
-    // this.beacon = { major:0, minor: 0 };
-    // this.beacon.restartAdvertising = function(){};
-    // this.beacon.rssiToDist = () => 0 + Math.random() * 3;
+    if (!window.cordova) {
+      this.beacon = { major:0, minor: 0 };
+      this.beacon.restartAdvertising = function(){};
+      this.beacon.rssiToDist = () => 0 + Math.random() * 3;
 
-    // window.setInterval(() => {
-    //   const pluginResult = { beacons : [] };
-    //   for (let i = 0; i < 2; i++) {
-    //     if (i !== client.index) {
-    //       const beacon = {
-    //         major: 0,
-    //         minor: i,
-    //         rssi: -30 - i * 5, // this is not used (cf. `rssiToDist`)
-    //         proximity : 'hi',
-    //       };
-    //       pluginResult.beacons.push(beacon);
-    //     }
-    //   }
-    //   this.beaconCallback(pluginResult);
-    // }, 1000);
-    // END DEBUG (maybe define a global variable for that)
-
-    if (this.beacon) {
-      const major = 0;
-      const minor = client.index;
-
-      // change local beacon info
-      this.beacon.major = major;
-      this.beacon.minor = minor;
-      this.beacon.restartAdvertising();
-
-      // start local sound
-      this.audioPlayer.startLocalTrack(client.index);
+      window.setInterval(() => {
+        const pluginResult = { beacons : [] };
+        for (let i = 0; i < 2; i++) {
+          if (i !== client.index) {
+            const beacon = {
+              major: 0,
+              minor: i,
+              rssi: -30 - i * 5, // this is not used (cf. `rssiToDist`)
+              proximity : 'hi',
+            };
+            pluginResult.beacons.push(beacon);
+          }
+        }
+        this.beaconCallback(pluginResult);
+      }, 1000);
     }
+
+    const major = 0;
+    const minor = client.index;
+
+    // change local beacon info
+    this.beacon.major = major;
+    this.beacon.minor = minor;
+    this.beacon.restartAdvertising();
+
+    // start local sound
+    this.audioPlayer.startLocalTrack(client.index);
 
     // setup motion input listeners
     if (this.motionInput.isAvailable('accelerationIncludingGravity')) {

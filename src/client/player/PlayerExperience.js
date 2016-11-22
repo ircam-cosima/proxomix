@@ -1,12 +1,6 @@
-// Import Soundworks library (client side)
 import * as soundworks from 'soundworks/client';
-
-// Import beacon service
 import Beacon from '../../shared/client/services/Beacon';
-
-// Import local classes
 import AudioPlayer from './AudioPlayer';
-import AudioAnalyser from './AudioAnalyser';
 
 const audioContext = soundworks.audioContext;
 const client = soundworks.client;
@@ -86,12 +80,9 @@ export default class PlayerExperience extends soundworks.Experience {
     this.view = this.createView();
 
     // local attributes
-    // this.audioAnalyser = new AudioAnalyser();
     this.audioPlayer = new AudioPlayer(this.sync, this.scheduler, this.loader.buffers, {
       quantization: 2.4,
     });
-
-    // this.audioPlayer.connect(this.audioAnalyser.input);
 
     this.lastEffect1Value = -Infinity;
 

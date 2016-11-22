@@ -104,7 +104,7 @@ class LoopTrack extends audio.TimeEngine {
     this.cutoff.frequency.value = cutoffFreq;
   }
 
-  setGain(val/*, fadeTime = 0*/) {
+  setGain(val) {
     this.gain.gain.value = val;
   }
 

@@ -34,8 +34,8 @@
         <splash src="assets/cosima-spashscreen-black.jpg" width="640" height="960" /> -->
     </platform>
     <!-- <preference name="AutoHideSplashScreen" value="true" />
-    <preference name="ShowSplashScreenSpinner" val -->ue="false"/>
+    <preference name="ShowSplashScreenSpinner" value="false"/>
 
-    <preference name="SplashScreen" value="none"/>
+    <preference name="SplashScreen" value="none"/> -->
 
 </widget>
